@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
 
 env:
   IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/wisecow
@@ -14,14 +11,10 @@ env:
 jobs:
   # ─────────────────────────────────────────────
   # JOB 1: Build and Push Docker image to Docker Hub
-  # Runs on GitHub-hosted runner
   # ─────────────────────────────────────────────
   build-and-push:
     name: Build & Push Docker Image
     runs-on: ubuntu-latest
-
-    outputs:
-      image_tag: ${{ steps.meta.outputs.version }}
 
     steps:
       - name: Checkout repository
@@ -36,60 +29,78 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Extract Docker metadata (tags, labels)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE_NAME }}
-          tags: |
-            type=sha,prefix=sha-,format=short
-            type=raw,value=latest,enable={{is_default_branch}}
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ github.run_number }}
+            ${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Print image tags
+      - name: Print image info
         run: |
-          echo " Image pushed:"
-          echo "${{ steps.meta.outputs.tags }}"
+          echo " Image pushed: ${{ env.IMAGE_NAME }}:${{ github.run_number }}"
 
   # ─────────────────────────────────────────────
-  # JOB 2: Deploy to Minikube via self-hosted runner
-  # Runs on your local machine (self-hosted runner)
+  # JOB 2: Update image tag in deployment YAML
+  # Same pattern as your Jenkins pipeline
   # ─────────────────────────────────────────────
-  deploy:
-    name: Deploy to Minikube
-    runs-on: self-hosted          # <-- your local machine
-    needs: build-and-push         # only runs after image is pushed
-    if: github.ref == 'refs/heads/main'   # only on main branch pushes
+  update-manifest:
+    name: Update Deployment Manifest
+    runs-on: ubuntu-latest
+    needs: build-and-push
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set image tag
-        id: tag
+      - name: Update image tag in wisecow-deployment.yaml
         run: |
-          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          echo "tag=sha-${SHORT_SHA}" >> $GITHUB_OUTPUT
+          # Get current image tag from deployment yaml
+          imageTag=$(grep -oP '(?<=wisecow:)[^ ]+' wisecow-deployment.yaml)
+          echo "Current tag: $imageTag"
+          echo "New tag: ${{ github.run_number }}"
 
-      - name: Update deployment image
+          # Replace old tag with new build number (same as your Jenkins sed command)
+          sed -i "s|${{ env.IMAGE_NAME }}:${imageTag}|${{ env.IMAGE_NAME }}:${{ github.run_number }}|" wisecow-deployment.yaml
+
+          echo "Updated wisecow-deployment.yaml:"
+          grep "image:" wisecow-deployment.yaml
+
+      - name: Commit and push updated manifest
         run: |
-          kubectl set image deployment/wisecow-deployment \
-            wisecow=${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }} \
-            --record
+          git config user.email "sandeepreddymunagala@gmail.com"
+          git config user.name "munagalasandeep99"
+          git add wisecow-deployment.yaml
+          git commit -m "Update deployment image to version ${{ github.run_number }}"
+          git push origin main
+
+  # ─────────────────────────────────────────────
+  # JOB 3: Deploy to Minikube via self-hosted runner
+  # ─────────────────────────────────────────────
+  deploy:
+    name: Deploy to Minikube
+    runs-on: self-hosted
+    needs: update-manifest
+
+    steps:
+      - name: Checkout updated repository
+        uses: actions/checkout@v4
+        with:
+          ref: main   # pull latest commit (with updated image tag)
+
+      - name: Apply updated deployment manifest
+        run: |
+          kubectl apply -f wisecow-deployment.yaml
 
       - name: Wait for rollout to complete
         run: |
-          kubectl rollout status deployment/wisecow-deployment \
-            --timeout=120s
+          kubectl rollout status deployment/wisecow-deployment --timeout=120s
 
       - name: Verify pods are running
         run: |
@@ -98,5 +109,5 @@ jobs:
 
       - name: Print deployment summary
         run: |
-          echo " Deployed image: ${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }}"
-          echo "App accessible at: https://wisecow.local"
+          echo " Deployed: ${{ env.IMAGE_NAME }}:${{ github.run_number }}"
+          echo " App: https://wisecow.local"
