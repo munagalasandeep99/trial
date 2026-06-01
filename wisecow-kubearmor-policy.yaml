@@ -8,8 +8,6 @@ spec:
     matchLabels:
       app: wisecow
 
-  # ── Process Restrictions ──────────────────────────────────────────
-  # Only allow wisecow.sh, cowsay, fortune, bash, sh, nc to run
   process:
     matchPaths:
       - path: /app/wisecow.sh
@@ -34,8 +32,6 @@ spec:
         action: Allow
     action: Block   # Block everything else
 
-  # ── File Restrictions ─────────────────────────────────────────────
-  # Block access to sensitive files
   file:
     matchPaths:
       - path: /etc/shadow
@@ -43,17 +39,7 @@ spec:
       - path: /etc/passwd
         action: Audit
 
-    matchDirectories:
-      - dir: /root/
-        action: Block
-      - dir: /home/
-        action: Block
-      - dir: /proc/
-        readOnly: true
-        action: Audit
 
-  # ── Network Restrictions ──────────────────────────────────────────
-  # Only allow TCP on port 4499 (wisecow port)
   network:
     matchProtocols:
       - protocol: tcp
@@ -63,8 +49,7 @@ spec:
       - protocol: icmp
         action: Block
 
-  # ── Capabilities Restrictions ─────────────────────────────────────
-  # Block dangerous Linux capabilities
+
   capabilities:
     matchCapabilities:
       - capability: net_raw
