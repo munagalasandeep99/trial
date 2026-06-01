@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: wisecow
-        image: sandeepreddymunagala/wisecow:2   
+        image: sandeepreddymunagala/wisecow:3   # CI/CD updates this tag automatically
         imagePullPolicy: Always
         ports:
         - containerPort: 4499
