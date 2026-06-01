@@ -115,7 +115,8 @@ minikube tunnel
 #### Step 6 — Configure DNS and Test
 ```bash
 echo "127.0.0.1  wisecow.local" | sudo tee -a /etc/hosts
-
+```
+```bash
 # Test HTTPS
 curl -k https://wisecow.local
 ```
