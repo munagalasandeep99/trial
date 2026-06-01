@@ -122,6 +122,8 @@ curl -k https://wisecow.local
 ```
 
 **App running over HTTPS at `https://wisecow.local`:**
+<img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/ef0a45e0-847b-4bae-b666-8e3eda616693" />
+
 
 
 
@@ -182,7 +184,7 @@ mkdir actions-runner && cd actions-runner
 ```
 
 ---
-
+<img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/14d35781-f742-4c6a-a094-359335699cfa" />
 ## Problem Statement 2
 
 Three Bash automation scripts are implemented in the `scripts/` directory.
@@ -362,4 +364,4 @@ karmor log
 - `Enforcer: BPFLSM`
 
 ---
-
+<img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/ed4dbccc-82a1-4cf5-ad15-b015dc5e5812" />
